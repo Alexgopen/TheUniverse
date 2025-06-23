@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Singularity Arcade</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: black;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      cursor: none;
+    }
+    #winScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      color: black;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #winScreen.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+    #winScreen h1 {
+      font-size: 4rem;
+      margin-bottom: 20px;
+    }
+    #winScreen button {
+      font-size: 1.5rem;
+      padding: 10px 30px;
+      border: none;
+      background: black;
+      color: white;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    #winScreen button:hover {
+      background: #222;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="winScreen">
+    <h1>Singularity achieved.</h1>
+    <button onclick="bigBang()">Big Bang?</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const winScreen = document.getElementById('winScreen');
+
+    let width, height;
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    let hue = 0;
+    let bubbles = [];
+    let pops = [];
+    const mouse = { x: width / 2, y: height / 2, size: 8 };
+    let singularityTriggered = false;
+    let singularityTime = 0;
+
+    function createBubble(edgeSpawn = false, fromCenter = false) {
+      let x, y, dx, dy;
+      const speedBoost = 3; // increased global speed factor
+      const edgeLaunchBoost = 6;
+
+      if (fromCenter) {
+        x = width / 2;
+        y = height / 2;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 16 + Math.random() * 4;
+        dx = Math.cos(angle) * speed;
+        dy = Math.sin(angle) * speed;
+      } else if (edgeSpawn) {
+        const side = Math.floor(Math.random() * 4);
+        if (side === 0) { x = 0; y = Math.random() * height; dx = 1 + Math.random() * edgeLaunchBoost; dy = signedHalfToOne(true) * speedBoost * 2; }
+        else if (side === 1) { x = width; y = Math.random() * height; dx = -1 - Math.random() * edgeLaunchBoost; dy = signedHalfToOne(true) * speedBoost * 2; }
+        else if (side === 2) { x = Math.random() * width; y = 0; dy = 1 + Math.random() * edgeLaunchBoost; dx = signedHalfToOne(true) * speedBoost * 2; }
+        else { x = Math.random() * width; y = height; dy = -1 - Math.random() * edgeLaunchBoost; dx = signedHalfToOne(true) * speedBoost * 2; }
+      } else {
+        x = Math.random() * width;
+        y = Math.random() * height;
+        dx = randomSignedHalfToOne() * speedBoost * 2;
+        dy = randomSignedHalfToOne() * speedBoost * 2;
+      }
+      bubbles.push({
+        x: x,
+        y: y,
+        size: 10 + Math.random() * 20,
+        dx: dx,
+        dy: dy,
+        offset: Math.random() * 360
+      });
+    }
+    
+    function signedHalfToOne(sign) {
+      const value = 0.5 + Math.random() * 0.5;
+      return sign ? value : -value;
+    }
+    
+    function randomSignedHalfToOne() {
+      const isNegative = Math.random() < 0.5;
+      const value = 0.5 + Math.random() * 0.5;
+      return isNegative ? -value : value;
+    }
+
+    function initBubbles(count = 100) {
+      bubbles = [];
+      for (let i = 0; i < count; i++) {
+        createBubble();
+      }
+    }
+
+    initBubbles();
+
+    function drawGrid() {
+      const spacing = 50;
+      ctx.strokeStyle = 'rgba(0, 255, 128, 0.91)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < width; x += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < height; y += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+    }
+    
+    function coversCorner(cx, cy, radius) {
+      const margin = 30;
+      const corners = [
+        { x: 0 + margin, y: 0 + margin},
+        { x: width - margin, y: 0 + margin},
+        { x: 0 + margin, y: height - margin},
+        { x: width - margin, y: height - margin}
+      ];
+      return corners.every(corner => {
+        const dx = cx - corner.x;
+        const dy = cy - corner.y;
+        return Math.hypot(dx, dy) <= radius;
+      });
+    }
+
+    function draw() {
+      const maxSize = Math.max(width, height) * 0.75;
+
+      if (!singularityTriggered && coversCorner(mouse.x, mouse.y, mouse.size)) {
+        singularityTriggered = true;
+        singularityTime = performance.now();
+      }
+
+      if (singularityTriggered) {
+        const now = performance.now();
+        if (now - singularityTime > 500) {
+          document.body.style.background = 'white';
+          canvas.style.display = 'none';
+          winScreen.classList.add('show');
+          return;
+        }
+      }
+
+      if (!singularityTriggered) {
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, width, height);
+      drawGrid();
+      }
+
+      if (!singularityTriggered) {
+        for (let i = pops.length - 1; i >= 0; i--) {
+          const p = pops[i];
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.strokeStyle = `hsl(${p.hue}, 100%, 80%)`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          p.size += 3;
+          p.alpha -= 0.05;
+          if (p.alpha <= 0) {
+            pops.splice(i, 1);
+          }
+        }
+      }
+
+      for (let i = bubbles.length - 1; i >= 0; i--) {
+        const b = bubbles[i];
+        const dx = b.x - mouse.x;
+        const dy = b.y - mouse.y;
+        const dist = Math.hypot(dx, dy);
+
+        // Pop only if away from screen edge
+        const edgeMargin = 20;
+        const safelyAwayFromEdge = (b.x > edgeMargin && b.x < width - edgeMargin && b.y > edgeMargin && b.y < height - edgeMargin);
+
+        if (dist < b.size + mouse.size) {
+          pops.push({ x: b.x, y: b.y, size: b.size, alpha: 1, hue: hue });
+          bubbles.splice(i, 1);
+          if (!singularityTriggered) {
+            createBubble(true);
+          }
+          if (safelyAwayFromEdge) {
+            mouse.size += 0.7; // slower growth now
+          }
+          continue;
+        }
+
+        b.x += b.dx;
+        b.y += b.dy;
+
+        if (b.x - b.size < 0) { b.x = b.size; b.dx *= -1; }
+        if (b.x + b.size > width) { b.x = width - b.size; b.dx *= -1; }
+        if (b.y - b.size < 0) { b.y = b.size; b.dy *= -1; }
+        if (b.y + b.size > height) { b.y = height - b.size; b.dy *= -1; }
+
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+        ctx.fillStyle = `hsl(${(hue + b.offset) % 360}, 100%, 70%)`;
+        ctx.shadowColor = `hsl(${(hue + b.offset) % 360}, 100%, 70%)`;
+        ctx.shadowBlur = 15;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.beginPath();
+      ctx.arc(mouse.x, mouse.y, mouse.size, 0, Math.PI * 2);
+      ctx.fillStyle = 'white';
+      ctx.shadowColor = 'white';
+      ctx.shadowBlur = 20;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      if (mouse.size > 8) {
+        mouse.size -= 0.03;
+      }
+
+      hue += 0.3;
+      requestAnimationFrame(draw);
+    }
+
+    canvas.addEventListener('mousemove', e => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    });
+    
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      if (touch) {
+        mouse.x = touch.clientX;
+        mouse.y = touch.clientY;
+      }
+    }, { passive: false });
+
+    setInterval(() => {
+      createBubble(true);
+    }, 800);
+
+    draw();
+
+    window.bigBang = function() {
+      document.body.style.background = 'white';
+      canvas.style.display = 'block';
+      winScreen.classList.remove('show');
+      mouse.size = 8;
+      pops = [];
+      bubbles = [];
+      singularityTriggered = false;
+      for (let i = 0; i < 100; i++) {
+        createBubble(false, true);
+      }
+      draw();
+    }
+  </script>
+</body>
+</html>
