@@ -71,6 +71,7 @@
     
     const popPoolSize = 6;
     const popPool = [];
+    let lastPopSoundTime = 0;
 
     for (let i = 0; i < popPoolSize; i++) {
       const sound = new Audio('pop.wav');
@@ -80,6 +81,9 @@
     }
 
     function playPopSound() {
+      const now = performance.now();
+      if (now - lastPopSoundTime < 50) return; // 20 pops/sec max
+      lastPopSoundTime = now;
       // Count how many sounds are currently playing
       const activeCount = popPool.filter(sound => !sound.paused && !sound.ended).length;
 
@@ -208,16 +212,20 @@
       });
     }
 
+    let lastFrameTime = 0;
     function draw() {
+      const now = performance.now();
+      if (now - lastFrameTime < 7) {
+        requestAnimationFrame(draw);
+        return;
+      }
+      lastFrameTime = now;
+    
       const maxSize = Math.max(width, height) * 0.75;
 
       if (!singularityTriggered && coversCorner(mouse.x, mouse.y, mouse.size)) {
         singularityTriggered = true;
         singularityTime = performance.now();
-        
-        // Play singularity sound
-        singularitySound.currentTime = 0;
-        singularitySound.play();
       }
 
       if (singularityTriggered) {
@@ -264,6 +272,8 @@
 
         if (lastBigBangTime === 0 || performance.now() - lastBigBangTime > 500) {
             if (dist < b.size + mouse.size) {
+              // Limit pop arcs to 50 max
+              if (pops.length >= 50) pops.shift();
               pops.push({ x: b.x, y: b.y, size: b.size, alpha: 1, hue: hue });
               bubbles.splice(i, 1);
               
@@ -351,7 +361,9 @@
     }, { passive: false });
 
     setInterval(() => {
-      createBubble(true);
+      if (bubbles.length < 100) {
+        createBubble(true);
+      }
     }, 800);
 
     draw();
@@ -365,6 +377,11 @@
       bubbles = [];
       singularityTriggered = false;
       lastBigBangTime = performance.now();
+              
+      // Play singularity sound
+      singularitySound.currentTime = 0;
+      singularitySound.play();
+      
       for (let i = 0; i < 100; i++) {
         createBubble(false, true);
       }
