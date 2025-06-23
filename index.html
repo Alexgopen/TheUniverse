@@ -64,6 +64,45 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const winScreen = document.getElementById('winScreen');
+    let lastBigBangTime = 0;
+    const singularitySound = new Audio('singularity.wav');
+    singularitySound.volume = 0.4;
+    singularitySound.preload = 'auto';
+    
+    const popPoolSize = 6;
+    const popPool = [];
+    let lastPopSoundTime = 0;
+
+    for (let i = 0; i < popPoolSize; i++) {
+      const sound = new Audio('pop.wav');
+      sound.volume = 0.1;
+      sound.preload = 'auto';
+      popPool.push(sound);
+    }
+
+    function playPopSound() {
+      const now = performance.now();
+      if (now - lastPopSoundTime < 50) return; // 20 pops/sec max
+      lastPopSoundTime = now;
+      // Count how many sounds are currently playing
+      const activeCount = popPool.filter(sound => !sound.paused && !sound.ended).length;
+
+      // Calculate volume scale factor — fewer active sounds = louder, more active = quieter
+      const baseVolume = 0.1;
+      const maxSimultaneous = popPoolSize;
+      const scaledVolume = baseVolume * (1 - (activeCount / maxSimultaneous) * 0.7); 
+      // scales down to ~30% of baseVolume when pool is full
+
+      for (let i = 0; i < popPoolSize; i++) {
+        const sound = popPool[i];
+        if (sound.paused || sound.ended) {
+          sound.currentTime = 0;
+          sound.volume = scaledVolume;
+          sound.play();
+          return;
+        }
+      }
+    }
 
     let width, height;
     function resize() {
@@ -114,6 +153,10 @@
         dy: dy,
         offset: Math.random() * 360
       });
+    }
+    
+    function zeroToHalf(sign) {
+      return Math.random() - 0.5;
     }
     
     function signedHalfToOne(sign) {
@@ -169,7 +212,15 @@
       });
     }
 
+    let lastFrameTime = 0;
     function draw() {
+      const now = performance.now();
+      if (now - lastFrameTime < 7) {
+        requestAnimationFrame(draw);
+        return;
+      }
+      lastFrameTime = now;
+    
       const maxSize = Math.max(width, height) * 0.75;
 
       if (!singularityTriggered && coversCorner(mouse.x, mouse.y, mouse.size)) {
@@ -219,16 +270,47 @@
         const edgeMargin = 20;
         const safelyAwayFromEdge = (b.x > edgeMargin && b.x < width - edgeMargin && b.y > edgeMargin && b.y < height - edgeMargin);
 
-        if (dist < b.size + mouse.size) {
-          pops.push({ x: b.x, y: b.y, size: b.size, alpha: 1, hue: hue });
-          bubbles.splice(i, 1);
-          if (!singularityTriggered) {
-            createBubble(true);
-          }
-          if (safelyAwayFromEdge) {
-            mouse.size += 0.7; // slower growth now
-          }
-          continue;
+        if (lastBigBangTime === 0 || performance.now() - lastBigBangTime > 500) {
+            if (dist < b.size + mouse.size) {
+              // Limit pop arcs to 50 max
+              if (pops.length >= 50) pops.shift();
+              pops.push({ x: b.x, y: b.y, size: b.size, alpha: 1, hue: hue });
+              bubbles.splice(i, 1);
+              
+              // Play pop sound
+              playPopSound();
+              
+              if (!singularityTriggered) {
+                createBubble(true);
+              }
+              if (safelyAwayFromEdge) {
+                mouse.size += 0.7; // slower growth now
+              }
+              continue;
+            }
+        }
+
+        if (performance.now() - lastBigBangTime > 3000) {
+            // Dynamic attraction to mouse
+            const baseAttraction = 0.01; // base pull
+            const sizeMultiplier = 0.0015; // how much extra pull per unit of mouse size
+            const attractionStrength = baseAttraction + (mouse.size * sizeMultiplier);
+
+            const ax = mouse.x - b.x;
+            const ay = mouse.y - b.y;
+            const distance = Math.hypot(ax, ay);
+
+            if (distance > 1) { // avoid divide by zero
+              const pullX = (ax / distance) * attractionStrength;
+              const pullY = (ay / distance) * attractionStrength;
+              b.dx += pullX;
+              b.dy += pullY;
+            }
+            
+            // Optional max speed cap
+            const maxSpeed = 12;
+            b.dx = Math.max(-maxSpeed, Math.min(maxSpeed, b.dx));
+            b.dy = Math.max(-maxSpeed, Math.min(maxSpeed, b.dy));
         }
 
         b.x += b.dx;
@@ -279,7 +361,9 @@
     }, { passive: false });
 
     setInterval(() => {
-      createBubble(true);
+      if (bubbles.length < 100) {
+        createBubble(true);
+      }
     }, 800);
 
     draw();
@@ -292,6 +376,12 @@
       pops = [];
       bubbles = [];
       singularityTriggered = false;
+      lastBigBangTime = performance.now();
+              
+      // Play singularity sound
+      singularitySound.currentTime = 0;
+      singularitySound.play();
+      
       for (let i = 0; i < 100; i++) {
         createBubble(false, true);
       }
