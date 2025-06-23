@@ -64,6 +64,40 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const winScreen = document.getElementById('winScreen');
+    const singularitySound = new Audio('singularity.wav');
+    singularitySound.volume = 0.4;
+    singularitySound.preload = 'auto';
+    
+    const popPoolSize = 6;
+    const popPool = [];
+
+    for (let i = 0; i < popPoolSize; i++) {
+      const sound = new Audio('pop.wav');
+      sound.volume = 0.1;
+      sound.preload = 'auto';
+      popPool.push(sound);
+    }
+
+    function playPopSound() {
+      // Count how many sounds are currently playing
+      const activeCount = popPool.filter(sound => !sound.paused && !sound.ended).length;
+
+      // Calculate volume scale factor — fewer active sounds = louder, more active = quieter
+      const baseVolume = 0.1;
+      const maxSimultaneous = popPoolSize;
+      const scaledVolume = baseVolume * (1 - (activeCount / maxSimultaneous) * 0.7); 
+      // scales down to ~30% of baseVolume when pool is full
+
+      for (let i = 0; i < popPoolSize; i++) {
+        const sound = popPool[i];
+        if (sound.paused || sound.ended) {
+          sound.currentTime = 0;
+          sound.volume = scaledVolume;
+          sound.play();
+          return;
+        }
+      }
+    }
 
     let width, height;
     function resize() {
@@ -175,6 +209,10 @@
       if (!singularityTriggered && coversCorner(mouse.x, mouse.y, mouse.size)) {
         singularityTriggered = true;
         singularityTime = performance.now();
+        
+        // Play singularity sound
+        singularitySound.currentTime = 0;
+        singularitySound.play();
       }
 
       if (singularityTriggered) {
@@ -222,6 +260,10 @@
         if (dist < b.size + mouse.size) {
           pops.push({ x: b.x, y: b.y, size: b.size, alpha: 1, hue: hue });
           bubbles.splice(i, 1);
+          
+          // Play pop sound
+          playPopSound();
+          
           if (!singularityTriggered) {
             createBubble(true);
           }
