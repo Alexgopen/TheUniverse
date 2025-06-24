@@ -103,6 +103,40 @@
 
   // New variable to track last bubble popped time
   let lastPopTime = performance.now();
+  
+const planetColors = [
+  "#7f8c8d", // gray
+  "#95a5a6", // light gray
+  "#5d6d7e", // dark steel
+  "#154360", // deep blue
+  "#1b4f72", // navy steel
+  "#1a5276", // dark teal
+  "#2471a3", // rich blue
+  "#2980b9", // vibrant blue
+  "#2e4053", // slate
+  "#34495e", // dark slate
+  "#566573", // muted gray-blue
+  "#6c7a89", // misty gray
+  "#839192", // blue-gray
+  "#5dade2", // sky steel
+  "#2874a6", // deep azure
+  "#1c2833", // near-black steel
+  "#85929e", // dusty slate
+  "#4a6370", // lead blue
+  "#283747", // deep midnight
+  "#17202a"  // very dark steel
+];
+
+    function adjustColorBrightness(hex, percent) {
+      const num = parseInt(hex.slice(1), 16);
+      let r = (num >> 16) + percent;
+      let g = ((num >> 8) & 0x00FF) + percent;
+      let b = (num & 0x0000FF) + percent;
+      r = Math.min(255, Math.max(0, r));
+      g = Math.min(255, Math.max(0, g));
+      b = Math.min(255, Math.max(0, b));
+      return `rgb(${r},${g},${b})`;
+    }
 
   function r(){
     const now = performance.now();
@@ -123,7 +157,7 @@
   function makeGrid(){
     gridCanvas.width=w; gridCanvas.height=h;
     gx.clearRect(0,0,w,h);
-    gx.strokeStyle="rgba(0,255,128,.91)";
+    gx.strokeStyle="rgba(66,88,128,.61)";
     gx.lineWidth=1;
     for(let a=0;a<w;a+=50){
       gx.beginPath(); gx.moveTo(a,0); gx.lineTo(a,h); gx.stroke();
@@ -169,7 +203,14 @@
     } else {
       X=R()*w; Y=R()*h; d=g()*0.5*6; e=g()*0.5*6;
     }
-    u.push({x:X,y:Y,s:10+R()*20,d:d,e:e,o:R()*360});
+    u.push({
+      x:X, y:Y, s:10+R()*20, d:d, e:e, o:R()*360,
+      color: adjustColorBrightness(
+          planetColors[Math.floor(R() * planetColors.length)],
+          Math.floor(R() * 90) + 10 // random between +10 and +100
+        )
+    });
+
     if(u.length>50) u.shift();
   }
 
@@ -237,7 +278,7 @@
     if(b.x+b.s<0||b.x-b.s>w||b.y+b.s<0||b.y-b.s>h)return;
     x.beginPath();
     x.arc(b.x,b.y,b.s,0,TWO_PI);
-    x.fillStyle=`hsl(${(Ht+b.o)%360},100%,70%)`;
+    x.fillStyle = b.color;
     x.fill();
   }
 
