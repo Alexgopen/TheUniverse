@@ -93,9 +93,9 @@
       score=0,
       lastScoreText="";
 
-  const s = new Audio(Z+"s");
+  const s = new Audio("singularity.wav");
   s.volume=0.4;
-  const p = Array.from({length:6},()=>{let a=new Audio(Z+"p");a.volume=0.1;return a});
+  const p = Array.from({length:6},()=>{let a=new Audio("pop.wav");a.volume=0.1;return a});
   let q=0;
   const MIN_SOUND_INTERVAL = 50;
   const MAX_CONCURRENT_SOUNDS = 3;
@@ -244,9 +244,24 @@
   function drawGlowOrb(){
     if(m.x+m.s<0||m.x-m.s>w||m.y+m.s<0||m.y-m.s>h)return;
     x.beginPath();
-    x.arc(m.x,m.y,m.s,0,TWO_PI);
-    x.fillStyle="#fff";
+    let factor = 1.0;
+    if (m.s > 300) {
+        factor = 0.1*300/m.s
+        factor = factor + (((m.s-300)*1.5*Math.sqrt(m.s-300))/300)/100; 
+    }
+    x.arc(m.x,m.y,m.s*factor,0,TWO_PI);
+    let color = "#f93";
+    if (m.s > 300) color = "#000";
+    x.fillStyle=color;
+    
+    x.shadowColor = "rgba(255,255,255,1)";
+    x.shadowBlur = m.s * factor * 1.1;
+    x.shadowOffsetX = 0;
+    x.shadowOffsetY = 0;
     x.fill();
+    // Clear shadow for other drawing
+    x.shadowColor = "transparent";
+    x.shadowBlur = 0;
   }
 
   function endGame(equilibrium = false) {
@@ -275,7 +290,7 @@
       T=n;
     }
     if(S){
-      if(n - T > 500){
+      if(n - T > 0){
         endGame(false);
         return;
       }
