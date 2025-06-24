@@ -337,10 +337,17 @@
       const dx=b.x - m.x,
             dy=b.y - m.y,
             dist=H(dx,dy),
-            margin=20,
+            margin=(m.s>300)?0:20,
             insideBounds=b.x>margin&&b.x<w-margin&&b.y>margin&&b.y<h-margin;
 
-      if((Ht===0 || n-Ht>500) && dist < b.s + m.s){
+         let factor = 1.0;
+        if (m.s > 300) {
+          factor = 0.1 * 300 / m.s;
+          factor += (((m.s - 300) * 1.5 * Math.sqrt(m.s - 300)) / 300) / 100;
+        }
+
+        let popDistance = b.s + (m.s > 300 ? m.s * factor : m.s);
+        if ((Ht === 0 || n - Ht > 500) && dist < popDistance) {
         if(v.length>=15) v.shift();
         v.push({x:b.x,y:b.y,s:b.s,a:1,h:Ht});
         u.splice(i,1);
@@ -355,19 +362,39 @@
         continue;
       }
 
-      if(n-Ht>3000){
-        let a=0.01+0.0015*m.s,
-            G=m.x - b.x,
-            K=m.y - b.y,
-            F=H(G,K);
-        if(F>1){
-          b.d+=G/F*a;
-          b.e+=K/F*a;
+    if (n - Ht > 3000) {
+      let G = m.x - b.x,
+          K = m.y - b.y,
+          F = H(G, K);
+
+      if (F > 1) {
+        if (m.s > 300 && F < m.s) {
+          // Inside event horizon — redirect existing speed toward center
+          const currentSpeed = H(b.d, b.e);
+          const accel = (0.005 + 0.001 * m.s) * (1 - F / m.s); // acceleration scales as it gets closer
+          const targetDx = (G / F);
+          const targetDy = (K / F);
+          const newDx = targetDx * currentSpeed;
+          const newDy = targetDy * currentSpeed;
+          
+          // Blend current velocity toward new direction
+          b.d += (newDx - b.d) * 0.1 + targetDx * accel;
+          b.e += (newDy - b.e) * 0.1 + targetDy * accel;
+        } 
+        else {
+          // Normal gravity pull
+          let a = 0.01 + 0.0015 * m.s;
+          b.d += (G / F) * a;
+          b.e += (K / F) * a;
+
+          const L = 12;
+          b.d = I(L, A(-L, b.d));
+          b.e = I(L, A(-L, b.e));
         }
-        const L=12;
-        b.d=I(L,A(-L,b.d));
-        b.e=I(L,A(-L,b.e));
       }
+    }
+      
+      
       b.x+=b.d;
       b.y+=b.e;
       if(b.x-b.s<0){b.x=b.s;b.d*=-1;}
