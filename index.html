@@ -48,15 +48,32 @@
       cursor: pointer;
       border-radius: 6px;
     }
+    #winScreen #scoreDisplay {
+      text-align: center;
+      margin: 10px 0;
+    }
     #winScreen button:hover {
       background: #222;
+    }
+    #scoreCounter {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      color: #0f0;
+      font-family: sans-serif;
+      font-size: 1.2rem;
+      z-index: 5;
+      pointer-events: none;
+      text-shadow: 0 0 5px #0f0;
     }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+  <div id="scoreCounter"></div>
   <div id="winScreen">
     <h1>Singularity achieved.</h1>
+    <p id="scoreDisplay" style="font-size:1.5rem;margin:10px 0;"></p>
     <button onclick="bigBang()">Big Bang?</button>
   </div>
 
@@ -65,6 +82,12 @@
     const ctx = canvas.getContext('2d');
     const winScreen = document.getElementById('winScreen');
     let lastBigBangTime = 0;
+    let score = 0;
+    let highScore = sessionStorage.getItem('highScore') ? parseFloat(sessionStorage.getItem('highScore')) : 0;
+    let scoreInterval = null;
+    const scoreCounter = document.getElementById('scoreCounter');
+    let scorePopups = [];
+    
     const singularitySound = new Audio('singularity.wav');
     singularitySound.volume = 0.4;
     singularitySound.preload = 'auto';
@@ -197,6 +220,34 @@
       }
     }
     
+    function getPopupColor(value, alpha) {
+      // Clamp value between 0 and 250
+      const v = Math.max(0, Math.min(250, value));
+
+      // Define your color stops
+      const stops = [
+        { v: 0,   h: 0 },     // red
+        { v: 70, h: 60 },    // yellow
+        { v: 100, h: 120 },   // green
+        { v: 150, h: 60 },    // yellow
+        { v: 200, h: 0 }      // red
+      ];
+
+      // Find the two stops this value is between
+      for (let i = 0; i < stops.length - 1; i++) {
+        const a = stops[i];
+        const b = stops[i + 1];
+        if (v >= a.v && v <= b.v) {
+          const t = (v - a.v) / (b.v - a.v);
+          const h = a.h + t * (b.h - a.h);
+          return `hsla(${h}, 100%, 60%, ${alpha})`;
+        }
+      }
+
+      // Fallback
+      return `hsla(0, 100%, 60%, ${alpha})`;
+    }
+    
     function coversCorner(cx, cy, radius) {
       const margin = 30;
       const corners = [
@@ -234,6 +285,17 @@
           document.body.style.background = 'white';
           canvas.style.display = 'none';
           winScreen.classList.add('show');
+
+          // Update high score if needed
+          if (score > highScore) {
+            highScore = score;
+            sessionStorage.setItem('highScore', highScore);
+          }
+
+          // Update win screen text
+          document.getElementById('scoreDisplay').innerHTML = 
+            `Score: ${score.toFixed(0)}<br>High Score: ${highScore.toFixed(0)}`;
+
           return;
         }
       }
@@ -292,8 +354,8 @@
 
         if (performance.now() - lastBigBangTime > 3000) {
             // Dynamic attraction to mouse
-            const baseAttraction = 0.01; // base pull
-            const sizeMultiplier = 0.0015; // how much extra pull per unit of mouse size
+            const baseAttraction = 0.02; // base pull
+            const sizeMultiplier = 0.003; // how much extra pull per unit of mouse size
             const attractionStrength = baseAttraction + (mouse.size * sizeMultiplier);
 
             const ax = mouse.x - b.x;
@@ -342,6 +404,34 @@
         mouse.size -= 0.03;
       }
 
+      scoreCounter.textContent = `Score: ${score.toFixed(0)}`;
+      
+      for (let i = scorePopups.length - 1; i >= 0; i--) {
+        const popup = scorePopups[i];
+      
+        // Map value to font size and weight
+        const baseSize = 14;
+        const extraSize = Math.min(popup.value * 0.5, 16); // cap extra size growth
+        const fontSize = baseSize + extraSize;
+        const fontWeight = popup.value > 20 ? 'bold' : 'normal';
+
+        // Score gradient
+        ctx.fillStyle = getPopupColor(popup.value, popup.alpha);
+
+        ctx.font = `${fontWeight} ${fontSize}px sans-serif`;
+        ctx.textAlign = 'left';
+      
+        // Apply random horizontal jitter on each frame
+        const jitter = (Math.random() - 0.5) * 1.5;
+        ctx.fillText(popup.text, popup.x + jitter, popup.y);
+      
+        popup.y -= 0.5;
+        popup.alpha -= 0.015;
+        if (popup.alpha <= 0) {
+          scorePopups.splice(i, 1);
+        }
+      }
+
       hue += 0.3;
       requestAnimationFrame(draw);
     }
@@ -360,6 +450,13 @@
       }
     }, { passive: false });
 
+    function getScoreCounterWidth(newScoreText) {
+      ctx.font = '1.2rem sans-serif'; // match #scoreCounter font
+      return ctx.measureText(newScoreText).width;
+    }
+    
+    
+
     setInterval(() => {
       if (bubbles.length < 100) {
         createBubble(true);
@@ -367,6 +464,29 @@
     }, 800);
 
     draw();
+    startScoreInterval();
+    
+    function startScoreInterval() {
+      if (scoreInterval) return; // already running
+      scoreInterval = setInterval(() => {
+        if (!singularityTriggered) {
+          score += mouse.size;
+          const scoreCounterRect = scoreCounter.getBoundingClientRect();
+          const popupText = `+${mouse.size.toFixed(0)}`;
+          const newScoreText = `Score: ${(score + mouse.size).toFixed(0)}`;
+          const scoreTextWidth = getScoreCounterWidth(newScoreText);
+
+          scorePopups.push({
+            text: popupText,
+            value: mouse.size,
+            x: scoreCounterRect.left + scoreTextWidth + 10, // 10px margin after future text
+            y: scoreCounterRect.top + 18,
+            alpha: 1
+          });
+        }
+      }, 1000);
+    }
+
 
     window.bigBang = function() {
       document.body.style.background = 'white';
@@ -382,9 +502,16 @@
       singularitySound.currentTime = 0;
       singularitySound.play();
       
+      clearInterval(scoreInterval);
+      scoreInterval = null;
+      score = 0;
+      
       for (let i = 0; i < 100; i++) {
         createBubble(false, true);
       }
+      score = 0;
+      startScoreInterval();
+      
       draw();
     }
   </script>
