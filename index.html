@@ -1,519 +1,342 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Singularity Arcade</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: black;
-      overflow: hidden;
-    }
-    canvas {
-      display: block;
-      cursor: none;
-    }
-    #winScreen {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: white;
-      color: black;
-      font-family: sans-serif;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      opacity: 0;
-      pointer-events: none;
-      z-index: 10;
-    }
-    #winScreen.show {
-      opacity: 1;
-      pointer-events: all;
-    }
-    #winScreen h1 {
-      font-size: 4rem;
-      margin-bottom: 20px;
-    }
-    #winScreen button {
-      font-size: 1.5rem;
-      padding: 10px 30px;
-      border: none;
-      background: black;
-      color: white;
-      cursor: pointer;
-      border-radius: 6px;
-    }
-    #winScreen #scoreDisplay {
-      text-align: center;
-      margin: 10px 0;
-    }
-    #winScreen button:hover {
-      background: #222;
-    }
-    #scoreCounter {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      color: #0f0;
-      font-family: sans-serif;
-      font-size: 1.2rem;
-      z-index: 5;
-      pointer-events: none;
-      text-shadow: 0 0 5px #0f0;
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>The Universe</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; background: #000; overflow: hidden;
+  }
+  canvas {
+    display: block; cursor: none;
+  }
+  #score {
+    position: fixed; top: 10px; left: 10px;
+    color: #0f0; font-family: sans-serif;
+    font-size: 1.2rem; z-index: 5;
+    text-shadow: 0 0 5px #0f0;
+  }
+  #pops {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 4;
+  }
+  #w {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #fff; color: #000;
+    font-family: sans-serif;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    opacity: 0; pointer-events: none;
+    z-index: 10;
+  }
+  #w.show {
+    opacity: 1; pointer-events: all;
+  }
+  #w h1 {
+    font-size: 4rem; margin-bottom: 20px;
+  }
+  #w button {
+    font-size: 1.5rem; padding: 10px 30px;
+    border: none; background: #000; color: #fff;
+    cursor: pointer; border-radius: 6px;
+  }
+  #w button:hover {
+    background: #222;
+  }
+</style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
-  <div id="scoreCounter"></div>
-  <div id="winScreen">
-    <h1>Singularity achieved.</h1>
-    <p id="scoreDisplay" style="font-size:1.5rem;margin:10px 0;"></p>
-    <button onclick="bigBang()">Big Bang?</button>
-  </div>
+<canvas id="c"></canvas>
+<div id="score">Score: 0</div>
+<div id="pops"></div>
+<div id="w">
+  <h1>Singularity achieved.</h1>
+  <p id="final"></p>
+  <button onclick="B()">Big Bang?</button>
+</div>
+<script>
+let Z = "https://tinyurl.com/univ-",
+    R = Math.random, A = Math.max, I = Math.min, H = Math.hypot,
+    c = document.getElementById("c"), x = c.getContext("2d"),
+    w, h, Ht = 0, u = [], v = [],
+    m = { x: 0, y: 0, s: 8 },
+    S = 0, T = 0,
+    s = new Audio(Z + "s");
 
-  <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const winScreen = document.getElementById('winScreen');
-    let lastBigBangTime = 0;
-    let score = 0;
-    let highScore = sessionStorage.getItem('highScore') ? parseFloat(sessionStorage.getItem('highScore')) : 0;
-    let scoreInterval = null;
-    const scoreCounter = document.getElementById('scoreCounter');
-    let scorePopups = [];
-    
-    const singularitySound = new Audio('singularity.wav');
-    singularitySound.volume = 0.4;
-    singularitySound.preload = 'auto';
-    
-    const popPoolSize = 6;
-    const popPool = [];
-    let lastPopSoundTime = 0;
+s.volume = 0.4;
 
-    for (let i = 0; i < popPoolSize; i++) {
-      const sound = new Audio('pop.wav');
-      sound.volume = 0.1;
-      sound.preload = 'auto';
-      popPool.push(sound);
+let p = Array.from({ length: 6 }, _ => {
+  let a = new Audio(Z + "p");
+  a.volume = 0.1;
+  return a;
+}), q = 0;
+
+function r() {
+  let t = performance.now();
+  if (t - q < 50) return;
+  q = t;
+  let a = p.find(a => a.paused || a.ended);
+  if (a) {
+    a.currentTime = 0;
+    a.volume = 0.1 * (1 - p.filter(a => !a.paused && !a.ended).length / 6 * 0.7);
+    a.play();
+  }
+}
+
+function Rz() {
+  w = innerWidth;
+  h = innerHeight;
+  c.width = w;
+  c.height = h;
+  m.x = w / 2;
+  m.y = h / 2;
+}
+
+onresize = Rz;
+Rz();
+
+let g = (a, b) => 0.5 + R() * 0.5 * (a ? 1 : -1);
+
+function N(a = 0, b = 0) {
+  let X, Y, d, e, f = 3, F = 6;
+  if (b) {
+    X = w / 2;
+    Y = h / 2;
+    let t = R() * 6.28, c = 16 + R() * 4;
+    d = Math.cos(t) * c;
+    e = Math.sin(t) * c;
+  } else if (a) {
+    let t = R() * 4 | 0;
+    if (t == 0) {
+      X = 0;
+      Y = R() * h;
+      d = 1 + R() * F;
+      e = g(1) * F * 2;
+    } else if (t == 1) {
+      X = w;
+      Y = R() * h;
+      d = -1 - R() * F;
+      e = g(1) * F * 2;
+    } else if (t == 2) {
+      X = R() * w;
+      Y = 0;
+      e = 1 + R() * F;
+      d = g(1) * F * 2;
+    } else {
+      X = R() * w;
+      Y = h;
+      e = -1 - R() * F;
+      d = g(1) * F * 2;
     }
+  } else {
+    X = R() * w;
+    Y = R() * h;
+    d = g() * 0.5 * 6;
+    e = g() * 0.5 * 6;
+  }
+  u.push({ x: X, y: Y, s: 10 + R() * 20, d: d, e: e, o: R() * 360 });
+}
 
-    function playPopSound() {
-      const now = performance.now();
-      if (now - lastPopSoundTime < 50) return; // 20 pops/sec max
-      lastPopSoundTime = now;
-      // Count how many sounds are currently playing
-      const activeCount = popPool.filter(sound => !sound.paused && !sound.ended).length;
+function U(n) {
+  let m = 30, z = [[m, m], [w - m, m], [m, h - m], [w - m, h - m]];
+  return z.every(a => H(n.x - a[0], n.y - a[1]) <= n.s);
+}
 
-      // Calculate volume scale factor — fewer active sounds = louder, more active = quieter
-      const baseVolume = 0.1;
-      const maxSimultaneous = popPoolSize;
-      const scaledVolume = baseVolume * (1 - (activeCount / maxSimultaneous) * 0.7); 
-      // scales down to ~30% of baseVolume when pool is full
+let V = 0,
+    score = 0,
+    Hs = () => +sessionStorage.hs || 0,
+    Us = t => sessionStorage.hs = Math.max(Hs(), t),
 
-      for (let i = 0; i < popPoolSize; i++) {
-        const sound = popPool[i];
-        if (sound.paused || sound.ended) {
-          sound.currentTime = 0;
-          sound.volume = scaledVolume;
-          sound.play();
-          return;
+popup = (txt, x0, y0) => {
+  let pops = document.getElementById("pops");
+  if (pops.children.length >= 20) {
+    pops.removeChild(pops.firstChild);
+  }
+  let d = document.createElement("div");
+  d.style.position = "absolute";
+  d.style.left = x0 + "px";
+  d.style.top = y0 + "px";
+  d.style.color = "#0f0";
+  d.style.font = "bold 14px sans-serif";
+  d.style.textShadow = "0 0 5px #0f0";
+  d.textContent = txt;
+  pops.appendChild(d);
+  let a = 1;
+  let i = setInterval(() => {
+    a -= 0.03;
+    d.style.top = (parseFloat(d.style.top) - 0.5) + "px";
+    d.style.opacity = a;
+    if (a <= 0) {
+      clearInterval(i);
+      d.remove();
+    }
+  }, 16);
+},
+
+D = () => {
+  let n = performance.now();
+  if (n - V < 7) return requestAnimationFrame(D);
+  V = n;
+  if (!S && U(m)) {
+    S = 1;
+    T = n;
+  }
+  if (S) {
+    if (n - T > 500) {
+      document.body.style.background = "#fff";
+      c.style.display = "none";
+      document.getElementById("w").classList.add("show");
+      document.getElementById("final").innerHTML =
+        `Score: ${Math.floor(score).toLocaleString("en-US")}<br>High Score: ${Math.floor(Hs()).toLocaleString("en-US")}`;
+    }
+  } else {
+    x.fillStyle = "#000";
+    x.fillRect(0, 0, w, h);
+    (() => {
+      x.strokeStyle = "rgba(0,255,128,.91)";
+      x.lineWidth = 1;
+      for (let a = 0; a < w; a += 50) {
+        x.beginPath();
+        x.moveTo(a, 0);
+        x.lineTo(a, h);
+        x.stroke();
+      }
+      for (let a = 0; a < h; a += 50) {
+        x.beginPath();
+        x.moveTo(0, a);
+        x.lineTo(w, a);
+        x.stroke();
+      }
+    })();
+  }
+  if (!S) {
+    for (let i = v.length - 1; i >= 0; i--) {
+      let a = v[i];
+      x.beginPath();
+      x.arc(a.x, a.y, a.s, 0, 6.28);
+      x.strokeStyle = `hsl(${a.h},100%,80%)`;
+      x.lineWidth = 2;
+      x.stroke();
+      a.s += 3;
+      a.a -= 0.05;
+      if (a.a <= 0) v.splice(i, 1);
+    }
+  }
+  for (let i = u.length - 1; i >= 0; i--) {
+    let b = u[i],
+        d = b.x - m.x,
+        e = b.y - m.y,
+        f = H(d, e),
+        E = 20,
+        M = b.x > E && b.x < w - E && b.y > E && b.y < h - E;
+    if (Ht === 0 || n - Ht > 500) {
+      if (f < b.s + m.s) {
+        if (v.length >= 20) v.shift();
+        v.push({ x: b.x, y: b.y, s: b.s, a: 1, h: Ht });
+        u.splice(i, 1);
+        r();
+        if (!S) N(1);
+        if (M) {
+          m.s += 0.7;
+          score += Math.floor(m.s * 5);
+          popup("+" + Math.floor(m.s * 5), b.x, b.y);
         }
+        continue;
       }
     }
-
-    let width, height;
-    function resize() {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
+    if (n - Ht > 3000) {
+      let a = 0.01 + 0.0015 * m.s,
+          G = m.x - b.x,
+          K = m.y - b.y,
+          F = H(G, K);
+      if (F > 1) {
+        b.d += G / F * a;
+        b.e += K / F * a;
+      }
+      let L = 12;
+      b.d = I(L, A(-L, b.d));
+      b.e = I(L, A(-L, b.e));
     }
-    window.addEventListener('resize', resize);
-    resize();
-
-    let hue = 0;
-    let bubbles = [];
-    let pops = [];
-    const mouse = { x: width / 2, y: height / 2, size: 8 };
-    let singularityTriggered = false;
-    let singularityTime = 0;
-
-    function createBubble(edgeSpawn = false, fromCenter = false) {
-      let x, y, dx, dy;
-      const speedBoost = 3; // increased global speed factor
-      const edgeLaunchBoost = 6;
-
-      if (fromCenter) {
-        x = width / 2;
-        y = height / 2;
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 16 + Math.random() * 4;
-        dx = Math.cos(angle) * speed;
-        dy = Math.sin(angle) * speed;
-      } else if (edgeSpawn) {
-        const side = Math.floor(Math.random() * 4);
-        if (side === 0) { x = 0; y = Math.random() * height; dx = 1 + Math.random() * edgeLaunchBoost; dy = signedHalfToOne(true) * speedBoost * 2; }
-        else if (side === 1) { x = width; y = Math.random() * height; dx = -1 - Math.random() * edgeLaunchBoost; dy = signedHalfToOne(true) * speedBoost * 2; }
-        else if (side === 2) { x = Math.random() * width; y = 0; dy = 1 + Math.random() * edgeLaunchBoost; dx = signedHalfToOne(true) * speedBoost * 2; }
-        else { x = Math.random() * width; y = height; dy = -1 - Math.random() * edgeLaunchBoost; dx = signedHalfToOne(true) * speedBoost * 2; }
-      } else {
-        x = Math.random() * width;
-        y = Math.random() * height;
-        dx = randomSignedHalfToOne() * speedBoost * 2;
-        dy = randomSignedHalfToOne() * speedBoost * 2;
-      }
-      bubbles.push({
-        x: x,
-        y: y,
-        size: 10 + Math.random() * 20,
-        dx: dx,
-        dy: dy,
-        offset: Math.random() * 360
-      });
+    b.x += b.d;
+    b.y += b.e;
+    if (b.x - b.s < 0) {
+      b.x = b.s;
+      b.d *= -1;
     }
-    
-    function zeroToHalf(sign) {
-      return Math.random() - 0.5;
+    if (b.x + b.s > w) {
+      b.x = w - b.s;
+      b.d *= -1;
     }
-    
-    function signedHalfToOne(sign) {
-      const value = 0.5 + Math.random() * 0.5;
-      return sign ? value : -value;
+    if (b.y - b.s < 0) {
+      b.y = b.s;
+      b.e *= -1;
     }
-    
-    function randomSignedHalfToOne() {
-      const isNegative = Math.random() < 0.5;
-      const value = 0.5 + Math.random() * 0.5;
-      return isNegative ? -value : value;
+    if (b.y + b.s > h) {
+      b.y = h - b.s;
+      b.e *= -1;
     }
+    x.beginPath();
+    x.arc(b.x, b.y, b.s, 0, 6.28);
+    x.fillStyle = `hsl(${(Ht + b.o) % 360},100%,70%)`;
+    x.shadowColor = x.fillStyle;
+    x.shadowBlur = 15;
+    x.fill();
+    x.shadowBlur = 0;
+  }
+  x.beginPath();
+  x.arc(m.x, m.y, m.s, 0, 6.28);
+  x.fillStyle = "#fff";
+  x.shadowColor = "#fff";
+  x.shadowBlur = 20;
+  x.fill();
+  x.shadowBlur = 0;
+  if (m.s > 8) m.s -= 0.03;
+  Ht += 0.3;
+  document.getElementById("score").textContent = "Score: " + Math.floor(score).toLocaleString("en-US");
+  Us(score);
+  requestAnimationFrame(D);
+};
 
-    function initBubbles(count = 100) {
-      bubbles = [];
-      for (let i = 0; i < count; i++) {
-        createBubble();
-      }
-    }
+c.onmousemove = e => {
+  m.x = e.clientX;
+  m.y = e.clientY;
+};
+c.ontouchmove = e => {
+  e.preventDefault();
+  let t = e.touches[0];
+  if (t) {
+    m.x = t.clientX;
+    m.y = t.clientY;
+  }
+};
+setInterval(() => {
+  if (u.length < 50) N(1);
+}, 800);
 
-    initBubbles();
+for (let i = 0; i < 50; i++) N();
 
-    function drawGrid() {
-      const spacing = 50;
-      ctx.strokeStyle = 'rgba(0, 255, 128, 0.91)';
-      ctx.lineWidth = 1;
-      for (let x = 0; x < width; x += spacing) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-      for (let y = 0; y < height; y += spacing) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-      }
-    }
-    
-    function getPopupColor(value, alpha) {
-      // Clamp value between 0 and 250
-      const v = Math.max(0, Math.min(250, value));
+D();
 
-      // Define your color stops
-      const stops = [
-        { v: 0,   h: 0 },     // red
-        { v: 70, h: 60 },    // yellow
-        { v: 100, h: 120 },   // green
-        { v: 150, h: 60 },    // yellow
-        { v: 200, h: 0 }      // red
-      ];
-
-      // Find the two stops this value is between
-      for (let i = 0; i < stops.length - 1; i++) {
-        const a = stops[i];
-        const b = stops[i + 1];
-        if (v >= a.v && v <= b.v) {
-          const t = (v - a.v) / (b.v - a.v);
-          const h = a.h + t * (b.h - a.h);
-          return `hsla(${h}, 100%, 60%, ${alpha})`;
-        }
-      }
-
-      // Fallback
-      return `hsla(0, 100%, 60%, ${alpha})`;
-    }
-    
-    function coversCorner(cx, cy, radius) {
-      const margin = 30;
-      const corners = [
-        { x: 0 + margin, y: 0 + margin},
-        { x: width - margin, y: 0 + margin},
-        { x: 0 + margin, y: height - margin},
-        { x: width - margin, y: height - margin}
-      ];
-      return corners.every(corner => {
-        const dx = cx - corner.x;
-        const dy = cy - corner.y;
-        return Math.hypot(dx, dy) <= radius;
-      });
-    }
-
-    let lastFrameTime = 0;
-    function draw() {
-      const now = performance.now();
-      if (now - lastFrameTime < 7) {
-        requestAnimationFrame(draw);
-        return;
-      }
-      lastFrameTime = now;
-    
-      const maxSize = Math.max(width, height) * 0.75;
-
-      if (!singularityTriggered && coversCorner(mouse.x, mouse.y, mouse.size)) {
-        singularityTriggered = true;
-        singularityTime = performance.now();
-      }
-
-      if (singularityTriggered) {
-        const now = performance.now();
-        if (now - singularityTime > 500) {
-          document.body.style.background = 'white';
-          canvas.style.display = 'none';
-          winScreen.classList.add('show');
-
-          // Update high score if needed
-          if (score > highScore) {
-            highScore = score;
-            sessionStorage.setItem('highScore', highScore);
-          }
-
-          // Update win screen text
-          document.getElementById('scoreDisplay').innerHTML = 
-            `Score: ${score.toFixed(0)}<br>High Score: ${highScore.toFixed(0)}`;
-
-          return;
-        }
-      }
-
-      if (!singularityTriggered) {
-      ctx.fillStyle = 'black';
-      ctx.fillRect(0, 0, width, height);
-      drawGrid();
-      }
-
-      if (!singularityTriggered) {
-        for (let i = pops.length - 1; i >= 0; i--) {
-          const p = pops[i];
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.strokeStyle = `hsl(${p.hue}, 100%, 80%)`;
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          p.size += 3;
-          p.alpha -= 0.05;
-          if (p.alpha <= 0) {
-            pops.splice(i, 1);
-          }
-        }
-      }
-
-      for (let i = bubbles.length - 1; i >= 0; i--) {
-        const b = bubbles[i];
-        const dx = b.x - mouse.x;
-        const dy = b.y - mouse.y;
-        const dist = Math.hypot(dx, dy);
-
-        // Pop only if away from screen edge
-        const edgeMargin = 20;
-        const safelyAwayFromEdge = (b.x > edgeMargin && b.x < width - edgeMargin && b.y > edgeMargin && b.y < height - edgeMargin);
-
-        if (lastBigBangTime === 0 || performance.now() - lastBigBangTime > 500) {
-            if (dist < b.size + mouse.size) {
-              // Limit pop arcs to 50 max
-              if (pops.length >= 50) pops.shift();
-              pops.push({ x: b.x, y: b.y, size: b.size, alpha: 1, hue: hue });
-              bubbles.splice(i, 1);
-              
-              // Play pop sound
-              playPopSound();
-              
-              if (!singularityTriggered) {
-                createBubble(true);
-              }
-              if (safelyAwayFromEdge) {
-                mouse.size += 0.7; // slower growth now
-              }
-              continue;
-            }
-        }
-
-        if (performance.now() - lastBigBangTime > 3000) {
-            // Dynamic attraction to mouse
-            const baseAttraction = 0.02; // base pull
-            const sizeMultiplier = 0.003; // how much extra pull per unit of mouse size
-            const attractionStrength = baseAttraction + (mouse.size * sizeMultiplier);
-
-            const ax = mouse.x - b.x;
-            const ay = mouse.y - b.y;
-            const distance = Math.hypot(ax, ay);
-
-            if (distance > 1) { // avoid divide by zero
-              const pullX = (ax / distance) * attractionStrength;
-              const pullY = (ay / distance) * attractionStrength;
-              b.dx += pullX;
-              b.dy += pullY;
-            }
-            
-            // Optional max speed cap
-            const maxSpeed = 12;
-            b.dx = Math.max(-maxSpeed, Math.min(maxSpeed, b.dx));
-            b.dy = Math.max(-maxSpeed, Math.min(maxSpeed, b.dy));
-        }
-
-        b.x += b.dx;
-        b.y += b.dy;
-
-        if (b.x - b.size < 0) { b.x = b.size; b.dx *= -1; }
-        if (b.x + b.size > width) { b.x = width - b.size; b.dx *= -1; }
-        if (b.y - b.size < 0) { b.y = b.size; b.dy *= -1; }
-        if (b.y + b.size > height) { b.y = height - b.size; b.dy *= -1; }
-
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
-        ctx.fillStyle = `hsl(${(hue + b.offset) % 360}, 100%, 70%)`;
-        ctx.shadowColor = `hsl(${(hue + b.offset) % 360}, 100%, 70%)`;
-        ctx.shadowBlur = 15;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
-
-      ctx.beginPath();
-      ctx.arc(mouse.x, mouse.y, mouse.size, 0, Math.PI * 2);
-      ctx.fillStyle = 'white';
-      ctx.shadowColor = 'white';
-      ctx.shadowBlur = 20;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      if (mouse.size > 8) {
-        mouse.size -= 0.03;
-      }
-
-      scoreCounter.textContent = `Score: ${score.toFixed(0)}`;
-      
-      for (let i = scorePopups.length - 1; i >= 0; i--) {
-        const popup = scorePopups[i];
-      
-        // Map value to font size and weight
-        const baseSize = 14;
-        const extraSize = Math.min(popup.value * 0.5, 16); // cap extra size growth
-        const fontSize = baseSize + extraSize;
-        const fontWeight = popup.value > 20 ? 'bold' : 'normal';
-
-        // Score gradient
-        ctx.fillStyle = getPopupColor(popup.value, popup.alpha);
-
-        ctx.font = `${fontWeight} ${fontSize}px sans-serif`;
-        ctx.textAlign = 'left';
-      
-        // Apply random horizontal jitter on each frame
-        const jitter = (Math.random() - 0.5) * 1.5;
-        ctx.fillText(popup.text, popup.x + jitter, popup.y);
-      
-        popup.y -= 0.5;
-        popup.alpha -= 0.015;
-        if (popup.alpha <= 0) {
-          scorePopups.splice(i, 1);
-        }
-      }
-
-      hue += 0.3;
-      requestAnimationFrame(draw);
-    }
-
-    canvas.addEventListener('mousemove', e => {
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
-    });
-    
-    canvas.addEventListener('touchmove', e => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      if (touch) {
-        mouse.x = touch.clientX;
-        mouse.y = touch.clientY;
-      }
-    }, { passive: false });
-
-    function getScoreCounterWidth(newScoreText) {
-      ctx.font = '1.2rem sans-serif'; // match #scoreCounter font
-      return ctx.measureText(newScoreText).width;
-    }
-    
-    
-
-    setInterval(() => {
-      if (bubbles.length < 100) {
-        createBubble(true);
-      }
-    }, 800);
-
-    draw();
-    startScoreInterval();
-    
-    function startScoreInterval() {
-      if (scoreInterval) return; // already running
-      scoreInterval = setInterval(() => {
-        if (!singularityTriggered) {
-          score += mouse.size;
-          const scoreCounterRect = scoreCounter.getBoundingClientRect();
-          const popupText = `+${mouse.size.toFixed(0)}`;
-          const newScoreText = `Score: ${(score + mouse.size).toFixed(0)}`;
-          const scoreTextWidth = getScoreCounterWidth(newScoreText);
-
-          scorePopups.push({
-            text: popupText,
-            value: mouse.size,
-            x: scoreCounterRect.left + scoreTextWidth + 10, // 10px margin after future text
-            y: scoreCounterRect.top + 18,
-            alpha: 1
-          });
-        }
-      }, 1000);
-    }
-
-
-    window.bigBang = function() {
-      document.body.style.background = 'white';
-      canvas.style.display = 'block';
-      winScreen.classList.remove('show');
-      mouse.size = 8;
-      pops = [];
-      bubbles = [];
-      singularityTriggered = false;
-      lastBigBangTime = performance.now();
-              
-      // Play singularity sound
-      singularitySound.currentTime = 0;
-      singularitySound.play();
-      
-      clearInterval(scoreInterval);
-      scoreInterval = null;
-      score = 0;
-      
-      for (let i = 0; i < 100; i++) {
-        createBubble(false, true);
-      }
-      score = 0;
-      startScoreInterval();
-      
-      draw();
-    }
-  </script>
+window.B = () => {
+  document.body.style.background = "#fff";
+  c.style.display = "block";
+  document.getElementById("w").classList.remove("show");
+  m.s = 8;
+  v.length = 0;
+  u.length = 0;
+  S = 0;
+  Ht = performance.now();
+  s.currentTime = 0;
+  s.play();
+  score = 0;
+  document.getElementById("score").textContent = "Score: 0";
+  document.getElementById("pops").innerHTML = "";
+  for (let i = 0; i < 50; i++) N(0, 1);
+  D();
+};
+</script>
 </body>
 </html>
+
