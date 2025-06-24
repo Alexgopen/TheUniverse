@@ -17,11 +17,11 @@
     text-shadow: 0 0 5px #0f0;
   }
   #pops {
-    position: fixed;        /* changed from absolute */
+    position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;           /* viewport width */
-    height: 100vh;          /* viewport height */
+    width: 100vw;
+    height: 100vh;
     pointer-events: none;
     z-index: 4;
   }
@@ -64,7 +64,7 @@
     position: absolute;
     color: #0f0;
     font: bold 14px sans-serif;
-    white-space: nowrap;       /* prevent wrapping */
+    white-space: nowrap;
     user-select: none;
     transition: opacity 1s linear, top 1s linear;
     pointer-events: none;
@@ -76,7 +76,7 @@
 <div id="score">Score: 0</div>
 <div id="pops"></div>
 <div id="w">
-  <h1>Singularity achieved.</h1>
+  <h1></h1>
   <p id="final"></p>
   <button onclick="B()">Big Bang?</button>
 </div>
@@ -100,6 +100,9 @@
   const MIN_SOUND_INTERVAL = 50;
   const MAX_CONCURRENT_SOUNDS = 3;
   let lastSoundTime = 0;
+
+  // New variable to track last bubble popped time
+  let lastPopTime = performance.now();
 
   function r(){
     const now = performance.now();
@@ -191,17 +194,13 @@
     popPool.push({el:d, active:false, timeoutId:null});
   }
 
-  // Translate canvas coords to viewport/page coords
   function canvasToPage(x,y){
     const rect = c.getBoundingClientRect();
     return {x: x + rect.left, y: y + rect.top};
   }
 
   function popup(txt, x0, y0) {
-    // Convert canvas coords to page coords
     const pos = canvasToPage(x0, y0);
-
-    // Quickly reject if out of viewport bounds (optional)
     if (pos.x < 0 || pos.x > window.innerWidth || pos.y < 0 || pos.y > window.innerHeight) return;
 
     let pop = popPool.find(p => !p.active);
@@ -219,7 +218,7 @@
     d.textContent = txt;
     d.style.transition = "none";
     d.style.opacity = "1";
-    d.offsetWidth; // force reflow
+    d.offsetWidth; 
     d.style.transition = "opacity 1s linear, top 1s linear";
     pop.active = true;
 
@@ -250,25 +249,43 @@
     x.fill();
   }
 
+  function endGame(equilibrium = false) {
+    document.body.style.background = "#fff";
+    c.style.display = "none";
+    document.getElementById("w").classList.add("show");
+    if (equilibrium) {
+      document.querySelector("#w h1").textContent = "Equilibrium achieved.";
+      document.getElementById("final").innerHTML =
+        `Score: ∞<br>High Score: ${Math.floor(Hs()).toLocaleString("en-US")}`;
+    } else {
+      document.querySelector("#w h1").textContent = "Singularity achieved.";
+      document.getElementById("final").innerHTML =
+        `Score: ${Math.floor(score).toLocaleString("en-US")}<br>High Score: ${Math.floor(Hs()).toLocaleString("en-US")}`;
+    }
+  }
+
   function D(){
     const n=performance.now();
     if(n - V < 16) return requestAnimationFrame(D);
     V=n;
 
+    // Check original singularity condition
     if(!S && U(m)){
       S=1;
       T=n;
     }
     if(S){
       if(n - T > 500){
-        document.body.style.background="#fff";
-        c.style.display="none";
-        document.getElementById("w").classList.add("show");
-        document.getElementById("final").innerHTML =
-          `Score: ${Math.floor(score).toLocaleString("en-US")}<br>High Score: ${Math.floor(Hs()).toLocaleString("en-US")}`;
+        endGame(false);
         return;
       }
     } else {
+      // New equilibrium check:
+      // If no bubble popped for 20 seconds and size > 100, trigger equilibrium end
+      if (m.s > 100 && (n - lastPopTime) > 20000) {
+        endGame(true);
+        return;
+      }
       x.clearRect(0,0,w,h);
       x.drawImage(gridCanvas,0,0);
     }
@@ -318,6 +335,7 @@
           m.s+=0.7;
           score+=Math.floor(m.s*5);
           popup("+"+Math.floor(m.s*5),b.x,b.y);
+          lastPopTime = n;  // Update lastPopTime on bubble popped!
         }
         continue;
       }
@@ -379,6 +397,7 @@
     document.body.style.background = "#000";
     c.style.display = "block";
     document.getElementById("w").classList.remove("show");
+    document.querySelector("#w h1").textContent = "";
     m.s = 8;
     v.length = 0;
     u.length = 0;
@@ -387,6 +406,7 @@
     s.currentTime = 0;
     s.play();
     score = 0;
+    lastPopTime = performance.now(); // Reset lastPopTime on new game
     document.getElementById("score").textContent = "Score: 0";
     for(const pop of popPool){
       if(pop.timeoutId) clearTimeout(pop.timeoutId);
