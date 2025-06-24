@@ -17,7 +17,6 @@
     position: absolute;
     color: #0f0;
     font: bold 14px sans-serif;
-    text-shadow: 0 0 5px #0f0;
     transition: opacity 1s linear, top 1s linear;
     pointer-events: none;
   }
@@ -128,7 +127,7 @@
   // Popups pool and reuse
   const pops=document.getElementById("pops"),
         popPool=[],
-        maxPops=20;
+        maxPops=15;
   function createPopElement(){
     const d=document.createElement("div");
     d.className = "pop";
@@ -142,39 +141,39 @@
     popPool.push({el:d, active:false, timeoutId:null});
   }
 
-  function popup(txt,x0,y0){
-    if(x0<0||x0>w||y0<0||y0>h) return; // skip offscreen
-    // Find first inactive pop
-    let pop = popPool.find(p=>!p.active);
-    if(!pop){
-      // If none inactive, forcibly recycle oldest (shift)
-      pop = popPool.shift();
-      if(pop.timeoutId) clearTimeout(pop.timeoutId);
-      pop.el.style.opacity = "0";
-      pops.appendChild(pop.el);
-      popPool.push(pop);
-    }
-    const d = pop.el;
-    d.style.left = x0 + "px";
-    d.style.top = y0 + "px";
-    d.textContent = txt;
-    d.style.transition = "";  // reset transition
-    d.style.opacity = "1";
-    void d.offsetWidth;       // force style recalculation for transition restart
-    d.style.transition = "opacity 1s linear, top 1s linear";
-    pop.active = true;
+function popup(txt, x0, y0) {
+  if (x0 < 0 || x0 > w || y0 < 0 || y0 > h) return;
 
-    // Trigger fade + move in next animation frame
-    requestAnimationFrame(() => {
-      d.style.top = (y0 - 20) + "px";
-      d.style.opacity = "0";
-    });
-
-    pop.timeoutId = setTimeout(() => {
-      d.style.opacity = "0";
-      pop.active = false;
-    }, 1000);
+  // Find first inactive popup, or forcibly reuse oldest one
+  let pop = popPool.find(p => !p.active);
+  if (!pop) {
+    pop = popPool.shift();
+    if (pop.timeoutId) clearTimeout(pop.timeoutId);
+    pop.el.style.opacity = "0";
+    pops.appendChild(pop.el);
+    popPool.push(pop);
   }
+
+  const d = pop.el;
+  d.style.left = `${x0}px`;
+  d.style.top = `${y0}px`;
+  d.textContent = txt;
+  d.style.transition = "none";
+  d.style.opacity = "1";
+  d.offsetWidth; // force reflow
+  d.style.transition = "opacity 1s linear, top 1s linear";
+  pop.active = true;
+
+  requestAnimationFrame(() => {
+    d.style.top = `${y0 - 20}px`;
+    d.style.opacity = "0";
+  });
+
+  pop.timeoutId = setTimeout(() => {
+    pop.active = false;
+    d.style.opacity = "0";
+  }, 1000);
+}
 
   function drawBubble(b){
     if(b.x+b.s<0||b.x-b.s>w||b.y+b.s<0||b.y-b.s>h)return; // offscreen skip
@@ -231,8 +230,8 @@
         a.a-=0.05;
         if(a.a<=0)v.splice(i,1);
       }
-      // Limit pop arcs to max 20 aggressively
-      while(v.length > 20) v.shift();
+      // Limit pop arcs to max 15 aggressively
+      while(v.length > 15) v.shift();
     }
 
     for(let i=u.length-1;i>=0;i--){
@@ -253,7 +252,7 @@
             insideBounds=b.x>margin&&b.x<w-margin&&b.y>margin&&b.y<h-margin;
 
       if((Ht===0 || n-Ht>500) && dist < b.s + m.s){
-        if(v.length>=20) v.shift();
+        if(v.length>=15) v.shift();
         v.push({x:b.x,y:b.y,s:b.s,a:1,h:Ht});
         u.splice(i,1);
         r();
