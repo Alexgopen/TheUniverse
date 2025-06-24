@@ -6,17 +6,66 @@
 <style>
   html,body{margin:0;padding:0;background:#000;overflow:hidden}
   canvas{display:block;cursor:none}
-  #score{position:fixed;top:10px;left:10px;color:#0f0;font-family:sans-serif;font-size:1.2rem;z-index:5;text-shadow:0 0 5px #0f0}
-  #pops{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:4}
-  #w{position:fixed;inset:0;background:#fff;color:#000;font-family:sans-serif;display:flex;flex-direction:column;justify-content:center;align-items:center;opacity:0;pointer-events:none;z-index:10;transition:opacity 0.3s}
-  #w.show{opacity:1;pointer-events:auto}
-  #w h1{font-size:4rem;margin-bottom:20px}
-  #w button{font-size:1.5rem;padding:10px 30px;border:none;background:#000;color:#fff;cursor:pointer;border-radius:6px}
-  #w button:hover{background:#222}
+  #score {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    color: #0f0;
+    font-family: sans-serif;
+    font-size: 1.2rem;
+    z-index: 5;
+    text-shadow: 0 0 5px #0f0;
+  }
+  #pops {
+    position: fixed;        /* changed from absolute */
+    top: 0;
+    left: 0;
+    width: 100vw;           /* viewport width */
+    height: 100vh;          /* viewport height */
+    pointer-events: none;
+    z-index: 4;
+  }
+  #w {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    color: #000;
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 10;
+    transition: opacity 0.3s;
+  }
+  #w.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #w h1 {
+    font-size: 4rem;
+    margin-bottom: 20px;
+  }
+  #w button {
+    font-size: 1.5rem;
+    padding: 10px 30px;
+    border: none;
+    background: #000;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  #w button:hover {
+    background: #222;
+  }
   .pop {
     position: absolute;
     color: #0f0;
     font: bold 14px sans-serif;
+    white-space: nowrap;       /* prevent wrapping */
+    user-select: none;
     transition: opacity 1s linear, top 1s linear;
     pointer-events: none;
   }
@@ -48,17 +97,15 @@
   s.volume=0.4;
   const p = Array.from({length:6},()=>{let a=new Audio(Z+"p");a.volume=0.1;return a});
   let q=0;
-  const MIN_SOUND_INTERVAL = 50;  // Minimum ms between sound plays
+  const MIN_SOUND_INTERVAL = 50;
   const MAX_CONCURRENT_SOUNDS = 3;
   let lastSoundTime = 0;
-  
+
   function r(){
     const now = performance.now();
-    if (now - lastSoundTime < MIN_SOUND_INTERVAL) return; // Skip if too soon
-
+    if (now - lastSoundTime < MIN_SOUND_INTERVAL) return;
     const playingCount = p.filter(a => !a.paused && !a.ended).length;
-    if (playingCount >= MAX_CONCURRENT_SOUNDS) return; // Too many sounds playing
-
+    if (playingCount >= MAX_CONCURRENT_SOUNDS) return;
     let a = p.find(a => a.paused || a.ended);
     if (a) {
       a.currentTime = 0;
@@ -68,7 +115,6 @@
     }
   }
 
-  // Offscreen grid canvas cache
   let gridCanvas=document.createElement('canvas'),
       gx=gridCanvas.getContext('2d');
   function makeGrid(){
@@ -84,10 +130,19 @@
     }
   }
 
+  const pops=document.getElementById("pops"),
+        popPool=[],
+        maxPops=15;
+
   function Rz(){
-    w=window.innerWidth; h=window.innerHeight;
-    c.width=w; c.height=h;
-    m.x=w/2; m.y=h/2;
+    w = window.innerWidth;
+    h = window.innerHeight;
+    c.width = w;
+    c.height = h;
+    pops.style.width = w + "px";
+    pops.style.height = h + "px";
+    m.x = w/2;
+    m.y = h/2;
     makeGrid();
   }
   window.addEventListener('resize',Rz);
@@ -112,7 +167,7 @@
       X=R()*w; Y=R()*h; d=g()*0.5*6; e=g()*0.5*6;
     }
     u.push({x:X,y:Y,s:10+R()*20,d:d,e:e,o:R()*360});
-    if(u.length>50) u.shift(); // aggressive limit on bubbles
+    if(u.length>50) u.shift();
   }
 
   function U(n){
@@ -124,59 +179,63 @@
       Hs=()=>+sessionStorage.hs||0,
       Us=t=>sessionStorage.hs=Math.max(Hs(),t);
 
-  // Popups pool and reuse
-  const pops=document.getElementById("pops"),
-        popPool=[],
-        maxPops=15;
   function createPopElement(){
     const d=document.createElement("div");
     d.className = "pop";
     d.style.opacity = "1";
     return d;
   }
-  // Pre-create pop elements pool
   for(let i=0; i<maxPops; i++){
     const d=createPopElement();
     pops.appendChild(d);
     popPool.push({el:d, active:false, timeoutId:null});
   }
 
-function popup(txt, x0, y0) {
-  if (x0 < 0 || x0 > w || y0 < 0 || y0 > h) return;
-
-  // Find first inactive popup, or forcibly reuse oldest one
-  let pop = popPool.find(p => !p.active);
-  if (!pop) {
-    pop = popPool.shift();
-    if (pop.timeoutId) clearTimeout(pop.timeoutId);
-    pop.el.style.opacity = "0";
-    pops.appendChild(pop.el);
-    popPool.push(pop);
+  // Translate canvas coords to viewport/page coords
+  function canvasToPage(x,y){
+    const rect = c.getBoundingClientRect();
+    return {x: x + rect.left, y: y + rect.top};
   }
 
-  const d = pop.el;
-  d.style.left = `${x0}px`;
-  d.style.top = `${y0}px`;
-  d.textContent = txt;
-  d.style.transition = "none";
-  d.style.opacity = "1";
-  d.offsetWidth; // force reflow
-  d.style.transition = "opacity 1s linear, top 1s linear";
-  pop.active = true;
+  function popup(txt, x0, y0) {
+    // Convert canvas coords to page coords
+    const pos = canvasToPage(x0, y0);
 
-  requestAnimationFrame(() => {
-    d.style.top = `${y0 - 20}px`;
-    d.style.opacity = "0";
-  });
+    // Quickly reject if out of viewport bounds (optional)
+    if (pos.x < 0 || pos.x > window.innerWidth || pos.y < 0 || pos.y > window.innerHeight) return;
 
-  pop.timeoutId = setTimeout(() => {
-    pop.active = false;
-    d.style.opacity = "0";
-  }, 1000);
-}
+    let pop = popPool.find(p => !p.active);
+    if (!pop) {
+      pop = popPool.shift();
+      if (pop.timeoutId) clearTimeout(pop.timeoutId);
+      pop.el.style.opacity = "0";
+      pops.appendChild(pop.el);
+      popPool.push(pop);
+    }
+
+    const d = pop.el;
+    d.style.left = `${pos.x}px`;
+    d.style.top = `${pos.y}px`;
+    d.textContent = txt;
+    d.style.transition = "none";
+    d.style.opacity = "1";
+    d.offsetWidth; // force reflow
+    d.style.transition = "opacity 1s linear, top 1s linear";
+    pop.active = true;
+
+    requestAnimationFrame(() => {
+      d.style.top = `${pos.y - 20}px`;
+      d.style.opacity = "0";
+    });
+
+    pop.timeoutId = setTimeout(() => {
+      pop.active = false;
+      d.style.opacity = "0";
+    }, 1000);
+  }
 
   function drawBubble(b){
-    if(b.x+b.s<0||b.x-b.s>w||b.y+b.s<0||b.y-b.s>h)return; // offscreen skip
+    if(b.x+b.s<0||b.x-b.s>w||b.y+b.s<0||b.y-b.s>h)return;
     x.beginPath();
     x.arc(b.x,b.y,b.s,0,TWO_PI);
     x.fillStyle=`hsl(${(Ht+b.o)%360},100%,70%)`;
@@ -184,7 +243,7 @@ function popup(txt, x0, y0) {
   }
 
   function drawGlowOrb(){
-    if(m.x+m.s<0||m.x-m.s>w||m.y+m.s<0||m.y-m.s>h)return; // offscreen skip
+    if(m.x+m.s<0||m.x-m.s>w||m.y+m.s<0||m.y-m.s>h)return;
     x.beginPath();
     x.arc(m.x,m.y,m.s,0,TWO_PI);
     x.fillStyle="#fff";
@@ -207,7 +266,7 @@ function popup(txt, x0, y0) {
         document.getElementById("w").classList.add("show");
         document.getElementById("final").innerHTML =
           `Score: ${Math.floor(score).toLocaleString("en-US")}<br>High Score: ${Math.floor(Hs()).toLocaleString("en-US")}`;
-        return; // stop animation
+        return;
       }
     } else {
       x.clearRect(0,0,w,h);
@@ -230,14 +289,12 @@ function popup(txt, x0, y0) {
         a.a-=0.05;
         if(a.a<=0)v.splice(i,1);
       }
-      // Limit pop arcs to max 15 aggressively
       while(v.length > 15) v.shift();
     }
 
     for(let i=u.length-1;i>=0;i--){
       const b=u[i];
       if(b.x+b.s<0||b.x-b.s>w||b.y+b.s<0||b.y-b.s>h){
-        // Offscreen bubble, physics only, skip draw
         b.x+=b.d; b.y+=b.e;
         if(b.x-b.s<0){b.x=b.s;b.d*=-1;}
         if(b.x+b.s>w){b.x=w-b.s;b.d*=-1;}
@@ -331,14 +388,12 @@ function popup(txt, x0, y0) {
     s.play();
     score = 0;
     document.getElementById("score").textContent = "Score: 0";
-    // Reset pops: clear active + hide all popup elements
     for(const pop of popPool){
       if(pop.timeoutId) clearTimeout(pop.timeoutId);
       pop.active = false;
       pop.el.style.opacity = "0";
       pop.el.style.transition = "";
     }
-    // Do NOT clear pops.innerHTML here!
     for(const pop of popPool) pops.appendChild(pop.el);
     for(let i=0; i<50; i++) N(0,1);
     D();
