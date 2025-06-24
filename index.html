@@ -4,46 +4,22 @@
 <meta charset="UTF-8" />
 <title>The Universe</title>
 <style>
-  html, body {
-    margin: 0; padding: 0; background: #000; overflow: hidden;
-  }
-  canvas {
-    display: block; cursor: none;
-  }
-  #score {
-    position: fixed; top: 10px; left: 10px;
-    color: #0f0; font-family: sans-serif;
-    font-size: 1.2rem; z-index: 5;
+  html,body{margin:0;padding:0;background:#000;overflow:hidden}
+  canvas{display:block;cursor:none}
+  #score{position:fixed;top:10px;left:10px;color:#0f0;font-family:sans-serif;font-size:1.2rem;z-index:5;text-shadow:0 0 5px #0f0}
+  #pops{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:4}
+  #w{position:fixed;inset:0;background:#fff;color:#000;font-family:sans-serif;display:flex;flex-direction:column;justify-content:center;align-items:center;opacity:0;pointer-events:none;z-index:10;transition:opacity 0.3s}
+  #w.show{opacity:1;pointer-events:auto}
+  #w h1{font-size:4rem;margin-bottom:20px}
+  #w button{font-size:1.5rem;padding:10px 30px;border:none;background:#000;color:#fff;cursor:pointer;border-radius:6px}
+  #w button:hover{background:#222}
+  .pop {
+    position: absolute;
+    color: #0f0;
+    font: bold 14px sans-serif;
     text-shadow: 0 0 5px #0f0;
-  }
-  #pops {
-    position: fixed; top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none; z-index: 4;
-  }
-  #w {
-    position: fixed; top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: #fff; color: #000;
-    font-family: sans-serif;
-    display: flex; flex-direction: column;
-    justify-content: center; align-items: center;
-    opacity: 0; pointer-events: none;
-    z-index: 10;
-  }
-  #w.show {
-    opacity: 1; pointer-events: all;
-  }
-  #w h1 {
-    font-size: 4rem; margin-bottom: 20px;
-  }
-  #w button {
-    font-size: 1.5rem; padding: 10px 30px;
-    border: none; background: #000; color: #fff;
-    cursor: pointer; border-radius: 6px;
-  }
-  #w button:hover {
-    background: #222;
+    transition: opacity 1s linear, top 1s linear;
+    pointer-events: none;
   }
 </style>
 </head>
@@ -57,285 +33,318 @@
   <button onclick="B()">Big Bang?</button>
 </div>
 <script>
-let Z = "https://tinyurl.com/univ-",
-    R = Math.random, A = Math.max, I = Math.min, H = Math.hypot,
-    c = document.getElementById("c"), x = c.getContext("2d"),
-    w, h, Ht = 0, u = [], v = [],
-    m = { x: 0, y: 0, s: 8 },
-    S = 0, T = 0,
-    s = new Audio(Z + "s");
+(() => {
+  const Z = "https://tinyurl.com/univ-",
+        R = Math.random, A = Math.max, I = Math.min, H = Math.hypot,
+        TWO_PI = Math.PI*2;
+  const c = document.getElementById("c"),
+        x = c.getContext("2d");
+  let w, h, Ht=0, u=[], v=[],
+      m={x:0,y:0,s:8},
+      S=0, T=0,
+      score=0,
+      lastScoreText="";
 
-s.volume = 0.4;
+  const s = new Audio(Z+"s");
+  s.volume=0.4;
+  const p = Array.from({length:6},()=>{let a=new Audio(Z+"p");a.volume=0.1;return a});
+  let q=0;
+  const MIN_SOUND_INTERVAL = 50;  // Minimum ms between sound plays
+  const MAX_CONCURRENT_SOUNDS = 3;
+  let lastSoundTime = 0;
+  
+  function r(){
+    const now = performance.now();
+    if (now - lastSoundTime < MIN_SOUND_INTERVAL) return; // Skip if too soon
 
-let p = Array.from({ length: 6 }, _ => {
-  let a = new Audio(Z + "p");
-  a.volume = 0.1;
-  return a;
-}), q = 0;
+    const playingCount = p.filter(a => !a.paused && !a.ended).length;
+    if (playingCount >= MAX_CONCURRENT_SOUNDS) return; // Too many sounds playing
 
-function r() {
-  let t = performance.now();
-  if (t - q < 50) return;
-  q = t;
-  let a = p.find(a => a.paused || a.ended);
-  if (a) {
-    a.currentTime = 0;
-    a.volume = 0.1 * (1 - p.filter(a => !a.paused && !a.ended).length / 6 * 0.7);
-    a.play();
+    let a = p.find(a => a.paused || a.ended);
+    if (a) {
+      a.currentTime = 0;
+      a.volume = 0.1 * (1 - playingCount / p.length * 0.7);
+      a.play();
+      lastSoundTime = now;
+    }
   }
-}
 
-function Rz() {
-  w = innerWidth;
-  h = innerHeight;
-  c.width = w;
-  c.height = h;
-  m.x = w / 2;
-  m.y = h / 2;
-}
+  // Offscreen grid canvas cache
+  let gridCanvas=document.createElement('canvas'),
+      gx=gridCanvas.getContext('2d');
+  function makeGrid(){
+    gridCanvas.width=w; gridCanvas.height=h;
+    gx.clearRect(0,0,w,h);
+    gx.strokeStyle="rgba(0,255,128,.91)";
+    gx.lineWidth=1;
+    for(let a=0;a<w;a+=50){
+      gx.beginPath(); gx.moveTo(a,0); gx.lineTo(a,h); gx.stroke();
+    }
+    for(let a=0;a<h;a+=50){
+      gx.beginPath(); gx.moveTo(0,a); gx.lineTo(w,a); gx.stroke();
+    }
+  }
 
-onresize = Rz;
-Rz();
+  function Rz(){
+    w=window.innerWidth; h=window.innerHeight;
+    c.width=w; c.height=h;
+    m.x=w/2; m.y=h/2;
+    makeGrid();
+  }
+  window.addEventListener('resize',Rz);
+  Rz();
 
-let g = (a, b) => 0.5 + R() * 0.5 * (a ? 1 : -1);
+  const g=a=>0.5+R()*0.5*(a?1:-1);
 
-function N(a = 0, b = 0) {
-  let X, Y, d, e, f = 3, F = 6;
-  if (b) {
-    X = w / 2;
-    Y = h / 2;
-    let t = R() * 6.28, c = 16 + R() * 4;
-    d = Math.cos(t) * c;
-    e = Math.sin(t) * c;
-  } else if (a) {
-    let t = R() * 4 | 0;
-    if (t == 0) {
-      X = 0;
-      Y = R() * h;
-      d = 1 + R() * F;
-      e = g(1) * F * 2;
-    } else if (t == 1) {
-      X = w;
-      Y = R() * h;
-      d = -1 - R() * F;
-      e = g(1) * F * 2;
-    } else if (t == 2) {
-      X = R() * w;
-      Y = 0;
-      e = 1 + R() * F;
-      d = g(1) * F * 2;
+  function N(a=0,b=0){
+    let X,Y,d,e,F=6;
+    if(b){
+      X=w/2; Y=h/2;
+      let t=R()*TWO_PI,c=16+R()*4;
+      d=Math.cos(t)*c;
+      e=Math.sin(t)*c;
+    } else if(a){
+      let t=Math.floor(R()*4);
+      if(t===0){X=0;Y=R()*h;d=1+R()*F;e=g(1)*F*2}
+      else if(t===1){X=w;Y=R()*h;d=-1-R()*F;e=g(1)*F*2}
+      else if(t===2){X=R()*w;Y=0;e=1+R()*F;d=g(1)*F*2}
+      else{X=R()*w;Y=h;e=-1-R()*F;d=g(1)*F*2}
     } else {
-      X = R() * w;
-      Y = h;
-      e = -1 - R() * F;
-      d = g(1) * F * 2;
+      X=R()*w; Y=R()*h; d=g()*0.5*6; e=g()*0.5*6;
     }
-  } else {
-    X = R() * w;
-    Y = R() * h;
-    d = g() * 0.5 * 6;
-    e = g() * 0.5 * 6;
+    u.push({x:X,y:Y,s:10+R()*20,d:d,e:e,o:R()*360});
+    if(u.length>50) u.shift(); // aggressive limit on bubbles
   }
-  u.push({ x: X, y: Y, s: 10 + R() * 20, d: d, e: e, o: R() * 360 });
-}
 
-function U(n) {
-  let m = 30, z = [[m, m], [w - m, m], [m, h - m], [w - m, h - m]];
-  return z.every(a => H(n.x - a[0], n.y - a[1]) <= n.s);
-}
-
-let V = 0,
-    score = 0,
-    Hs = () => +sessionStorage.hs || 0,
-    Us = t => sessionStorage.hs = Math.max(Hs(), t),
-
-popup = (txt, x0, y0) => {
-  let pops = document.getElementById("pops");
-  if (pops.children.length >= 20) {
-    pops.removeChild(pops.firstChild);
+  function U(n){
+    const m=50,z=[[m,m],[w-m,m],[m,h-m],[w-m,h-m]];
+    return z.every(a=>H(n.x - a[0], n.y - a[1]) <= n.s);
   }
-  let d = document.createElement("div");
-  d.style.position = "absolute";
-  d.style.left = x0 + "px";
-  d.style.top = y0 + "px";
-  d.style.color = "#0f0";
-  d.style.font = "bold 14px sans-serif";
-  d.style.textShadow = "0 0 5px #0f0";
-  d.textContent = txt;
-  pops.appendChild(d);
-  let a = 1;
-  let i = setInterval(() => {
-    a -= 0.03;
-    d.style.top = (parseFloat(d.style.top) - 0.5) + "px";
-    d.style.opacity = a;
-    if (a <= 0) {
-      clearInterval(i);
-      d.remove();
+
+  let V=0,
+      Hs=()=>+sessionStorage.hs||0,
+      Us=t=>sessionStorage.hs=Math.max(Hs(),t);
+
+  // Popups pool and reuse
+  const pops=document.getElementById("pops"),
+        popPool=[],
+        maxPops=20;
+  function createPopElement(){
+    const d=document.createElement("div");
+    d.className = "pop";
+    d.style.opacity = "1";
+    return d;
+  }
+  // Pre-create pop elements pool
+  for(let i=0; i<maxPops; i++){
+    const d=createPopElement();
+    pops.appendChild(d);
+    popPool.push({el:d, active:false, timeoutId:null});
+  }
+
+  function popup(txt,x0,y0){
+    if(x0<0||x0>w||y0<0||y0>h) return; // skip offscreen
+    // Find first inactive pop
+    let pop = popPool.find(p=>!p.active);
+    if(!pop){
+      // If none inactive, forcibly recycle oldest (shift)
+      pop = popPool.shift();
+      if(pop.timeoutId) clearTimeout(pop.timeoutId);
+      pop.el.style.opacity = "0";
+      pops.appendChild(pop.el);
+      popPool.push(pop);
     }
-  }, 16);
-},
+    const d = pop.el;
+    d.style.left = x0 + "px";
+    d.style.top = y0 + "px";
+    d.textContent = txt;
+    d.style.transition = "";  // reset transition
+    d.style.opacity = "1";
+    void d.offsetWidth;       // force style recalculation for transition restart
+    d.style.transition = "opacity 1s linear, top 1s linear";
+    pop.active = true;
 
-D = () => {
-  let n = performance.now();
-  if (n - V < 7) return requestAnimationFrame(D);
-  V = n;
-  if (!S && U(m)) {
-    S = 1;
-    T = n;
+    // Trigger fade + move in next animation frame
+    requestAnimationFrame(() => {
+      d.style.top = (y0 - 20) + "px";
+      d.style.opacity = "0";
+    });
+
+    pop.timeoutId = setTimeout(() => {
+      d.style.opacity = "0";
+      pop.active = false;
+    }, 1000);
   }
-  if (S) {
-    if (n - T > 500) {
-      document.body.style.background = "#fff";
-      c.style.display = "none";
-      document.getElementById("w").classList.add("show");
-      document.getElementById("final").innerHTML =
-        `Score: ${Math.floor(score).toLocaleString("en-US")}<br>High Score: ${Math.floor(Hs()).toLocaleString("en-US")}`;
+
+  function drawBubble(b){
+    if(b.x+b.s<0||b.x-b.s>w||b.y+b.s<0||b.y-b.s>h)return; // offscreen skip
+    x.beginPath();
+    x.arc(b.x,b.y,b.s,0,TWO_PI);
+    x.fillStyle=`hsl(${(Ht+b.o)%360},100%,70%)`;
+    x.fill();
+  }
+
+  function drawGlowOrb(){
+    if(m.x+m.s<0||m.x-m.s>w||m.y+m.s<0||m.y-m.s>h)return; // offscreen skip
+    x.beginPath();
+    x.arc(m.x,m.y,m.s,0,TWO_PI);
+    x.fillStyle="#fff";
+    x.fill();
+  }
+
+  function D(){
+    const n=performance.now();
+    if(n - V < 16) return requestAnimationFrame(D);
+    V=n;
+
+    if(!S && U(m)){
+      S=1;
+      T=n;
     }
-  } else {
-    x.fillStyle = "#000";
-    x.fillRect(0, 0, w, h);
-    (() => {
-      x.strokeStyle = "rgba(0,255,128,.91)";
-      x.lineWidth = 1;
-      for (let a = 0; a < w; a += 50) {
-        x.beginPath();
-        x.moveTo(a, 0);
-        x.lineTo(a, h);
-        x.stroke();
+    if(S){
+      if(n - T > 500){
+        document.body.style.background="#fff";
+        c.style.display="none";
+        document.getElementById("w").classList.add("show");
+        document.getElementById("final").innerHTML =
+          `Score: ${Math.floor(score).toLocaleString("en-US")}<br>High Score: ${Math.floor(Hs()).toLocaleString("en-US")}`;
+        return; // stop animation
       }
-      for (let a = 0; a < h; a += 50) {
-        x.beginPath();
-        x.moveTo(0, a);
-        x.lineTo(w, a);
-        x.stroke();
-      }
-    })();
-  }
-  if (!S) {
-    for (let i = v.length - 1; i >= 0; i--) {
-      let a = v[i];
-      x.beginPath();
-      x.arc(a.x, a.y, a.s, 0, 6.28);
-      x.strokeStyle = `hsl(${a.h},100%,80%)`;
-      x.lineWidth = 2;
-      x.stroke();
-      a.s += 3;
-      a.a -= 0.05;
-      if (a.a <= 0) v.splice(i, 1);
+    } else {
+      x.clearRect(0,0,w,h);
+      x.drawImage(gridCanvas,0,0);
     }
-  }
-  for (let i = u.length - 1; i >= 0; i--) {
-    let b = u[i],
-        d = b.x - m.x,
-        e = b.y - m.y,
-        f = H(d, e),
-        E = 20,
-        M = b.x > E && b.x < w - E && b.y > E && b.y < h - E;
-    if (Ht === 0 || n - Ht > 500) {
-      if (f < b.s + m.s) {
-        if (v.length >= 20) v.shift();
-        v.push({ x: b.x, y: b.y, s: b.s, a: 1, h: Ht });
-        u.splice(i, 1);
+
+    if(!S){
+      for(let i=v.length-1;i>=0;i--){
+        let a=v[i];
+        if(a.x+a.s<0||a.x-a.s>w||a.y+a.s<0||a.y-a.s>h){
+          v.splice(i,1);
+          continue;
+        }
+        x.beginPath();
+        x.arc(a.x,a.y,a.s,0,TWO_PI);
+        x.strokeStyle=`hsl(${a.h},100%,80%)`;
+        x.lineWidth=2;
+        x.stroke();
+        a.s+=3;
+        a.a-=0.05;
+        if(a.a<=0)v.splice(i,1);
+      }
+      // Limit pop arcs to max 20 aggressively
+      while(v.length > 20) v.shift();
+    }
+
+    for(let i=u.length-1;i>=0;i--){
+      const b=u[i];
+      if(b.x+b.s<0||b.x-b.s>w||b.y+b.s<0||b.y-b.s>h){
+        // Offscreen bubble, physics only, skip draw
+        b.x+=b.d; b.y+=b.e;
+        if(b.x-b.s<0){b.x=b.s;b.d*=-1;}
+        if(b.x+b.s>w){b.x=w-b.s;b.d*=-1;}
+        if(b.y-b.s<0){b.y=b.s;b.e*=-1;}
+        if(b.y+b.s>h){b.y=h-b.s;b.e*=-1;}
+        continue;
+      }
+      const dx=b.x - m.x,
+            dy=b.y - m.y,
+            dist=H(dx,dy),
+            margin=20,
+            insideBounds=b.x>margin&&b.x<w-margin&&b.y>margin&&b.y<h-margin;
+
+      if((Ht===0 || n-Ht>500) && dist < b.s + m.s){
+        if(v.length>=20) v.shift();
+        v.push({x:b.x,y:b.y,s:b.s,a:1,h:Ht});
+        u.splice(i,1);
         r();
-        if (!S) N(1);
-        if (M) {
-          m.s += 0.7;
-          score += Math.floor(m.s * 5);
-          popup("+" + Math.floor(m.s * 5), b.x, b.y);
+        if(!S) N(1);
+        if(insideBounds){
+          m.s+=0.7;
+          score+=Math.floor(m.s*5);
+          popup("+"+Math.floor(m.s*5),b.x,b.y);
         }
         continue;
       }
-    }
-    if (n - Ht > 3000) {
-      let a = 0.01 + 0.0015 * m.s,
-          G = m.x - b.x,
-          K = m.y - b.y,
-          F = H(G, K);
-      if (F > 1) {
-        b.d += G / F * a;
-        b.e += K / F * a;
+
+      if(n-Ht>3000){
+        let a=0.01+0.0015*m.s,
+            G=m.x - b.x,
+            K=m.y - b.y,
+            F=H(G,K);
+        if(F>1){
+          b.d+=G/F*a;
+          b.e+=K/F*a;
+        }
+        const L=12;
+        b.d=I(L,A(-L,b.d));
+        b.e=I(L,A(-L,b.e));
       }
-      let L = 12;
-      b.d = I(L, A(-L, b.d));
-      b.e = I(L, A(-L, b.e));
+      b.x+=b.d;
+      b.y+=b.e;
+      if(b.x-b.s<0){b.x=b.s;b.d*=-1;}
+      if(b.x+b.s>w){b.x=w-b.s;b.d*=-1;}
+      if(b.y-b.s<0){b.y=b.s;b.e*=-1;}
+      if(b.y+b.s>h){b.y=h-b.s;b.e*=-1;}
+      drawBubble(b);
     }
-    b.x += b.d;
-    b.y += b.e;
-    if (b.x - b.s < 0) {
-      b.x = b.s;
-      b.d *= -1;
+
+    drawGlowOrb();
+
+    if(m.s>8) m.s -= 0.03;
+    Ht+=0.3;
+
+    const newScoreText = "Score: " + Math.floor(score).toLocaleString("en-US");
+    if(newScoreText !== lastScoreText){
+      document.getElementById("score").textContent = newScoreText;
+      lastScoreText = newScoreText;
     }
-    if (b.x + b.s > w) {
-      b.x = w - b.s;
-      b.d *= -1;
-    }
-    if (b.y - b.s < 0) {
-      b.y = b.s;
-      b.e *= -1;
-    }
-    if (b.y + b.s > h) {
-      b.y = h - b.s;
-      b.e *= -1;
-    }
-    x.beginPath();
-    x.arc(b.x, b.y, b.s, 0, 6.28);
-    x.fillStyle = `hsl(${(Ht + b.o) % 360},100%,70%)`;
-    x.shadowColor = x.fillStyle;
-    x.shadowBlur = 15;
-    x.fill();
-    x.shadowBlur = 0;
+
+    Us(score);
+
+    requestAnimationFrame(D);
   }
-  x.beginPath();
-  x.arc(m.x, m.y, m.s, 0, 6.28);
-  x.fillStyle = "#fff";
-  x.shadowColor = "#fff";
-  x.shadowBlur = 20;
-  x.fill();
-  x.shadowBlur = 0;
-  if (m.s > 8) m.s -= 0.03;
-  Ht += 0.3;
-  document.getElementById("score").textContent = "Score: " + Math.floor(score).toLocaleString("en-US");
-  Us(score);
-  requestAnimationFrame(D);
-};
 
-c.onmousemove = e => {
-  m.x = e.clientX;
-  m.y = e.clientY;
-};
-c.ontouchmove = e => {
-  e.preventDefault();
-  let t = e.touches[0];
-  if (t) {
-    m.x = t.clientX;
-    m.y = t.clientY;
-  }
-};
-setInterval(() => {
-  if (u.length < 50) N(1);
-}, 800);
+  c.onmousemove = e => { m.x = e.clientX; m.y = e.clientY; };
+  c.ontouchmove = e => {
+    e.preventDefault();
+    let t = e.touches[0];
+    if(t){ m.x = t.clientX; m.y = t.clientY; }
+  };
 
-for (let i = 0; i < 50; i++) N();
+  setInterval(() => {
+    if(u.length < 50) N(1);
+  }, 800);
 
-D();
+  for(let i=0; i<50; i++) N();
 
-window.B = () => {
-  document.body.style.background = "#fff";
-  c.style.display = "block";
-  document.getElementById("w").classList.remove("show");
-  m.s = 8;
-  v.length = 0;
-  u.length = 0;
-  S = 0;
-  Ht = performance.now();
-  s.currentTime = 0;
-  s.play();
-  score = 0;
-  document.getElementById("score").textContent = "Score: 0";
-  document.getElementById("pops").innerHTML = "";
-  for (let i = 0; i < 50; i++) N(0, 1);
   D();
-};
+
+  window.B = () => {
+    document.body.style.background = "#000";
+    c.style.display = "block";
+    document.getElementById("w").classList.remove("show");
+    m.s = 8;
+    v.length = 0;
+    u.length = 0;
+    S = 0;
+    Ht = performance.now();
+    s.currentTime = 0;
+    s.play();
+    score = 0;
+    document.getElementById("score").textContent = "Score: 0";
+    // Reset pops: clear active + hide all popup elements
+    for(const pop of popPool){
+      if(pop.timeoutId) clearTimeout(pop.timeoutId);
+      pop.active = false;
+      pop.el.style.opacity = "0";
+      pop.el.style.transition = "";
+    }
+    // Do NOT clear pops.innerHTML here!
+    for(const pop of popPool) pops.appendChild(pop.el);
+    for(let i=0; i<50; i++) N(0,1);
+    D();
+  };
+})();
 </script>
 </body>
 </html>
